@@ -81,7 +81,7 @@ O projeto adota ambiente puramente reprodutível. O Nix provê o runtime Python,
 No diretório raiz do projeto, execute:
 
 ```bash
-nix develop
+nix develop --extra-experimental-features "nix-command flakes"
 ```
 
 O hook minimalista do Nix irá:
