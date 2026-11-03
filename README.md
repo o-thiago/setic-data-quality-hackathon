@@ -63,8 +63,8 @@ O sistema adota os princípios de Clean Architecture, Domain-Driven Design (DDD)
 | **Python 3.12+ & FastAPI** | Gateway REST Assíncrono | Processamento de alta vazão com documentação OpenAPI interativa em Português do Brasil formal (pt-BR). |
 | **Pydantic V2** | Validação & Parsing Core | Validação ultrarrápida compilada em Rust com coerção estrita e esquemas tipados. |
 | **pyproject.toml** | *Single Source of Truth* | Especificação declarativa única (PEP 621) para dependências de runtime, dev tools, linters e LSPs. |
-| **Nix Flake (`pyproject.nix`)** | Ambiente Puro & Reprodutível | Shell declarativo simplificado que analisa diretamente o `pyproject.toml`, provisionando Python 3.12, utilitários nativos e hooks de automação. |
-| **PostgreSQL 16 (Docker / Podman)** | Persistência Relacional em Container | Executado isoladamente via container (`docker-compose.yml`), persistindo regras dinâmicas (`RegraValidacao`) e telemetria (`RegistroAuditoria`). |
+| **Nix Flake (`git-hooks.nix` & `pyproject.nix`)** | Ambiente Puro & Reprodutível | Shell declarativo e hermético que analisa diretamente o `pyproject.toml`, provisionando Python 3.12, utilitários nativos (`podman-compose`, `uv`, `pyright`) e Git Hooks pré-commit automáticos. |
+| **PostgreSQL 16 (Podman)** | Persistência Relacional em Container | Executado isoladamente via container gerenciado pelo Podman (`podman compose`), persistindo regras dinâmicas (`RegraValidacao`) e telemetria (`RegistroAuditoria`). |
 | **Streamlit** | Painel Executivo da CAGD | Dashboard operacional em tempo real: cards KPI, gráficos de falha, gestão de regras e sandbox interativo de testes. |
 | **`brutils`** | Identificadores Nacionais & IBGE | Validação matemática estrita de CPF/CNPJ (módulo 11), CEP, PIS, E-mail e resolução local de todos os 5.570 municípios brasileiros via `brutils/data/cities_code.json`, sem chamadas externas. |
 | **`phonenumbers` (libphonenumber)** | Padrão Telefônico Nacional & DDD | Validação e formatação oficial segundo especificações da Anatel e Google libphonenumber, eliminando listas manuais de DDDs. |
@@ -73,29 +73,103 @@ O sistema adota os princípios de Clean Architecture, Domain-Driven Design (DDD)
 
 ---
 
-## 3. Instalação e Execução com Nix Flake e Containers
+## 3. Instalação e Execução com Nix Flake e Podman
 
-O projeto adota ambiente puramente reprodutível. O Nix provê o runtime Python, ferramentas C/C++ e LSPs a partir do `pyproject.toml`, enquanto o PostgreSQL 16 é executado em container isolado via **Docker ou Podman**, simplificando o flake ao máximo.
+O projeto adota um ambiente de engenharia puramente reprodutível baseado em **Nix Flakes**. O Nix provisiona o runtime Python 3.12, utilitários nativos (`podman-compose`, `uv`, `pyright`) e instala os Git Hooks automaticamente, enquanto o PostgreSQL 16 é executado em container isolado via **Podman**, simplificando a infraestrutura ao máximo.
 
-### 3.1. Entrar no Ambiente de Desenvolvimento
-No diretório raiz do projeto, execute:
+### 3.1. Configuração do Ambiente Nix e Podman
 
-```bash
-nix develop --extra-experimental-features "nix-command flakes"
+#### Opção A: Ambiente NixOS
+No NixOS, o gerenciador de pacotes Nix é nativo do sistema operacional. Certifique-se de que os Flakes e o Podman estão habilitados na configuração do sistema (`/etc/nixos/configuration.nix`):
+
+```nix
+# Habilitar comando nix moderno e suporte a Flakes
+nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+# Habilitar o Podman e suporte à rede interna com resolução DNS
+virtualisation.podman = {
+  enable = true;
+  defaultNetwork.settings.dns_enabled = true;
+};
 ```
 
-O hook minimalista do Nix irá:
-1. Configurar a variável de ambiente `DATABASE_URL` para o PostgreSQL na porta `5432`.
-2. Criar e sincronizar o ambiente virtual `.venv` diretamente a partir do `pyproject.toml` usando `uv`.
-
-### 3.2. Inicialização do Banco de Dados em Container
-
-Suba o PostgreSQL 16 via Docker Compose ou Podman:
+Após aplicar a configuração (`sudo nixos-rebuild switch`), navegue até o diretório do projeto e inicialize o ambiente:
 
 ```bash
-docker compose up -d
-# ou com podman:
+nix develop
+```
+
+#### Opção B: Ambiente Não-NixOS (Ubuntu, Debian, Fedora, Arch, macOS, WSL2)
+Em distribuições Linux tradicionais ou macOS:
+
+1. **Instale o Nix**:
+   Recomenda-se o instalador oficial do [Determinate Systems](https://github.com/DeterminateSystems/nix-installer) (que já habilita Flakes por padrão):
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+   ```
+   *Caso utilize a instalação tradicional do Nix, habilite os Flakes em `~/.config/nix/nix.conf` (ou `/etc/nix/nix.conf`):*
+   ```conf
+   experimental-features = nix-command flakes
+   ```
+
+2. **Instale o Podman e Podman Compose** via gerenciador de pacotes do sistema:
+   ```bash
+   # Debian / Ubuntu
+   sudo apt update && sudo apt install -y podman podman-compose
+
+   # Fedora / RHEL
+   sudo dnf install -y podman podman-compose
+
+   # Arch Linux
+   sudo pacman -S podman podman-compose
+   ```
+
+3. **Entre no Ambiente de Desenvolvimento**:
+   No diretório raiz do projeto, execute:
+   ```bash
+   nix develop --extra-experimental-features "nix-command flakes"
+   # ou simplesmente (caso flakes já estejam ativos globalmente):
+   nix develop
+   ```
+
+---
+
+### 3.2. Sincronização de Dependências e Git Hooks Nativos
+
+Ao inicializar o shell `nix develop`, o `shellHook` declarativo do Flake executa automaticamente:
+1. **Instalação dos Git Pre-Commit Hooks**: Ativa os hooks declarativos gerenciados pelo `cachix/git-hooks.nix` diretamente em `.git/hooks/pre-commit`, interceptando automaticamente novos commits para executar `ruff-format`, `ruff`, `trim-trailing-whitespace` e `end-of-file-fixer`.
+2. **Configuração de Variáveis de Conexão**: Exporta `DATABASE_URL="postgresql+psycopg://postgres:postgres@localhost:5432/setic_qualidade"`.
+3. **Ativação do Ambiente Virtual**: Adiciona `.venv` ao `PATH` e define `VIRTUAL_ENV` caso o ambiente virtual exista.
+
+#### Primeira Inicialização (Criação do `.venv` com `uv`)
+Na primeira execução dentro do `nix develop`, sincronize as dependências declaradas no `pyproject.toml` executando:
+
+```bash
+uv sync --extra dev
+```
+O `uv` provisiona o ambiente virtual `.venv` local e instala todas as dependências de desenvolvimento e runtime em questão de milissegundos a partir do `pyproject.toml` e `uv.lock`.
+
+---
+
+### 3.3. Inicialização do Banco de Dados em Container (Podman)
+
+Suba a instância isolada do PostgreSQL 16 utilizando o Podman:
+
+```bash
 podman compose up -d
+# ou com o binário podman-compose provido pelo devshell do Nix:
+podman-compose up -d
+```
+
+Para verificar o status do container ou inspecionar os logs de inicialização:
+```bash
+podman ps
+podman logs setic_postgres
+```
+
+Para encerrar o container do banco quando necessário:
+```bash
+podman compose down
 ```
 
 ---
@@ -117,16 +191,20 @@ streamlit run frontend/app.py
 ```
 - **Interface Web da CAGD**: [http://localhost:8501](http://localhost:8501)
 
-### 4.3. Execução dos Testes Automatizados e Linters
+### 4.3. Execução dos Testes Automatizados e Verificações de Qualidade
 ```bash
 # Suíte de testes unitários e de integração
 pytest
 
-# Análise estática, formatação e verificação de tipos
-ruff check .
-ruff format --check .
+# Análise estática e verificação estrita de tipos
 pyright
+
+# Validação completa de integridade do Flake e Git Hooks
+nix flake check
 ```
+
+> [!NOTE]
+> Os Git Hooks declarativos (`git-hooks.nix`) são acionados automaticamente a cada `git commit`, formatando e validando o código com `ruff` sem necessidade de disparos manuais.
 
 ---
 
@@ -140,7 +218,7 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
     "sistema_origem": "SISTEMA_RH_ESTADUAL",
     "dados": {
       "cpf": "117.941.016-59",
-      "data_nascimento": "15 de março de 1985",
+      "data": "15 de março de 1985",
       "municipio": "p. velho",
       "uf": "RO",
       "telefone": "(69) 99234-5678",
@@ -157,7 +235,7 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
   "sistema_origem": "SISTEMA_RH_ESTADUAL",
   "dados_normalizados": {
     "cpf": "11794101659",
-    "data_nascimento": "1985-03-15",
+    "data": "1985-03-15",
     "municipio": "Porto Velho",
     "codigo_ibge": "1100205",
     "uf": "RO",
@@ -174,6 +252,9 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
 }
 ```
 
+> [!TIP]
+> **Resolução de Aliases**: O motor aceita tanto o campo canônico `data` quanto sinônimos comuns (`data_nascimento`, `data_nasc`, `nascimento`), mapeados automaticamente para o padrão institucional.
+
 ---
 
 ### 5.2. Carga Válida 2: Município Fora de Rondônia (São Paulo/SP)
@@ -185,7 +266,7 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
     "sistema_origem": "SEFIN_CADASTRO_NACIONAL",
     "dados": {
       "cpf": "11794101659",
-      "data_nascimento": "20 de julho de 1995",
+      "data": "20 de julho de 1995",
       "municipio": "sao paulo",
       "uf": "SP",
       "telefone": "(11) 98765-4321"
@@ -199,7 +280,7 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
   "status_http": 200,
   "dados_normalizados": {
     "cpf": "11794101659",
-    "data_nascimento": "1995-07-20",
+    "data": "1995-07-20",
     "municipio": "São Paulo",
     "codigo_ibge": "3550308",
     "uf": "SP",
@@ -280,7 +361,7 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
     "sistema_origem": "SISTEMA_SAUDE_SUS",
     "dados": {
       "cpf": "11794101659",
-      "data_nascimento": "31/02/1990"
+      "data": "31/02/1990"
     }
   }'
 ```
@@ -291,7 +372,7 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
   "status_http": 422,
   "erros": [
     {
-      "campo": "data_nascimento",
+      "campo": "data",
       "regra_violada": "DATA_IMPOSSIVEL_CALENDARIO",
       "valor_rejeitado": "31/02/1990",
       "formato_esperado": "Data existente no calendário gregoriano",
@@ -389,7 +470,7 @@ curl -X GET "http://localhost:8000/api/v1/metricas"
   ],
   "top_campos_rejeitados": [
     { "nome": "cpf", "quantidade": 14 },
-    { "nome": "data_nascimento", "quantidade": 6 },
+    { "nome": "data", "quantidade": 6 },
     { "nome": "matricula_funcional", "quantidade": 4 }
   ],
   "top_regras_violadas": [
@@ -407,4 +488,4 @@ Este repositório possui regras rigorosas de governança descritas em `AGENTS.md
 - **Commits Atômicos**: Commits isolados por camada arquitetural com Conventional Commits (`feat(engine):`, `feat(api):`, etc.).
 - **Fonte Única da Verdade**: Todas as dependências declaradas no `pyproject.toml`; nunca liste pacotes fixos no `flake.nix`.
 - **Salvaguardas de Domínio**: Validação matemática obrigatória; proibição de persistência de dados defeituosos; núcleo de regras estritamente imutável.
-- **Ciclo de Verificação**: Execução mandatória de `ruff check .`, `ruff format --check .`, `pyright` e `pytest` antes de cada commit.
+- **Git Hooks Declarativos & Verificação**: A formatação (`ruff-format`), linting (`ruff`) e integridade de arquivos são assegurados automaticamente pelos Git Hooks declarativos do `flake.nix` (`cachix/git-hooks.nix`) instalados no ambiente, substituindo rotinas manuais legadas. A esteira é complementada por checagem estrita de tipos com `pyright` (zero `Any`) e testes automatizados com `pytest`.
