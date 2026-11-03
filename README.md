@@ -277,7 +277,9 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
 ```json
 {
   "sucesso": true,
+  "protocolo": "...",
   "status_http": 200,
+  "sistema_origem": "SEFIN_CADASTRO_NACIONAL",
   "dados_normalizados": {
     "cpf": "11794101659",
     "data": "1995-07-20",
@@ -285,7 +287,9 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
     "codigo_ibge": "3550308",
     "uf": "SP",
     "telefone": "11987654321"
-  }
+  },
+  "transformacoes": [ ... ],
+  "tempo_processamento_ms": 1.42
 }
 ```
 
@@ -307,12 +311,17 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
 ```json
 {
   "sucesso": true,
+  "protocolo": "...",
+  "status_http": 200,
+  "sistema_origem": "SEDUC_MATRICULAS",
   "dados_normalizados": {
     "codigo_ibge": "1100122",
     "municipio": "Ji-Paraná",
     "uf": "RO",
     "cpf": "11794101659"
-  }
+  },
+  "transformacoes": [ ... ],
+  "tempo_processamento_ms": 1.18
 }
 ```
 
@@ -347,7 +356,8 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
       "formato_esperado": "CPF com dígitos verificadores válidos (Algoritmo Módulo 11 da Receita Federal)",
       "mensagem": "Os dígitos verificadores do CPF não conferem com o algoritmo matemático oficial."
     }
-  ]
+  ],
+  "tempo_processamento_ms": 0.85
 }
 ```
 
@@ -369,7 +379,10 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
 ```json
 {
   "sucesso": false,
+  "protocolo": "...",
   "status_http": 422,
+  "sistema_origem": "SISTEMA_SAUDE_SUS",
+  "mensagem": "Falha na validação dos dados de entrada. Persistência bloqueada.",
   "erros": [
     {
       "campo": "data",
@@ -378,7 +391,8 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
       "formato_esperado": "Data existente no calendário gregoriano",
       "mensagem": "A data '31/02/1990' é impossível no calendário gregoriano: day is out of range for month."
     }
-  ]
+  ],
+  "tempo_processamento_ms": 0.92
 }
 ```
 
@@ -401,7 +415,10 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
 ```json
 {
   "sucesso": false,
+  "protocolo": "...",
   "status_http": 422,
+  "sistema_origem": "CADASTRO_EXTERNO",
+  "mensagem": "Falha na validação dos dados de entrada. Persistência bloqueada.",
   "erros": [
     {
       "campo": "municipio",
@@ -410,7 +427,8 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
       "formato_esperado": "Nome oficial ou grafia aproximável de município registrado no IBGE",
       "mensagem": "O município 'Atlantida' não foi localizado na base oficial do IBGE para a UF especificada (RO)."
     }
-  ]
+  ],
+  "tempo_processamento_ms": 1.05
 }
 ```
 
@@ -432,7 +450,10 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
 ```json
 {
   "sucesso": false,
+  "protocolo": "...",
   "status_http": 422,
+  "sistema_origem": "SISTEMA_RH_ESTADUAL",
+  "mensagem": "Falha na validação dos dados de entrada. Persistência bloqueada.",
   "erros": [
     {
       "campo": "matricula_funcional",
@@ -441,7 +462,8 @@ curl -X POST "http://localhost:8000/api/v1/validar" \
       "formato_esperado": "RO-123456",
       "mensagem": "A matrícula funcional deve seguir rigorosamente o padrão RO- seguido de 6 dígitos numéricos."
     }
-  ]
+  ],
+  "tempo_processamento_ms": 0.88
 }
 ```
 
