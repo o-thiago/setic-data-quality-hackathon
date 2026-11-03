@@ -44,7 +44,7 @@ Each commit must represent a single architectural layer or independent logical u
 | `docs` | `(agents)` | Updates to governance rules, agent guidelines, and contracts. |
 | `feat` | `(packaging)` | Declarative packaging and dependency configuration (`pyproject.toml`). |
 | `feat` | `(nix)` | Reproducible environment, derivations, and devshell (`flake.nix`). |
-| `feat` | `(infra)` | Docker / Podman container configurations (`docker-compose.yml`). |
+| `feat` | `(infra)` | Podman container configurations (`compose.yml`). |
 | `feat` | `(database)` | Persistence layer, SQLAlchemy models, and database sessions. |
 | `feat` | `(validators)` | Canonical immutable validators for CPF, CNPJ, IBGE, dates, etc. |
 | `feat` | `(engine)` | Hybrid validation pipeline engine (core rules + dynamic rules). |
