@@ -31,7 +31,7 @@ A plataforma atua como uma barreira centralizada (*gatekeeper*) na borda da arqu
 └─────────────────────────────┬──────────────────────────┘
                               ▼
             ┌──────────────────────────────────┐
-            │   PostgreSQL 16 (Auditoria/Regras)│
+            │   PostgreSQL 17 (Auditoria/Regras)│
             │   Streamlit (Painel Executivo CAGD)│
             └──────────────────────────────────┘
 ```
@@ -64,7 +64,7 @@ O sistema adota os princípios de Clean Architecture, Domain-Driven Design (DDD)
 | **Pydantic V2** | Validação & Parsing Core | Validação ultrarrápida compilada em Rust com coerção estrita e esquemas tipados. |
 | **pyproject.toml** | *Single Source of Truth* | Especificação declarativa única (PEP 621) para dependências de runtime, dev tools, linters e LSPs. |
 | **Nix Flake (`flake-parts`, `nix-systems` & `git-hooks.nix`)** | Ambiente Puro & Reprodutível | Shell declarativo e hermético que analisa diretamente o `pyproject.toml`, provisionando o runtime `python3` (versão estável de ponta / *bleeding edge stable*), utilitários nativos (`podman-compose`, `uv`, `pyright`), injeção declarativa de ambiente (`env = { ... }` com `LD_LIBRARY_PATH` dinâmico para extensões C++) e Git Hooks pré-commit automáticos. |
-| **PostgreSQL 16 (Podman)** | Persistência Relacional em Container | Executado isoladamente via container gerenciado pelo Podman (`podman compose`), persistindo regras dinâmicas (`RegraValidacao`) e telemetria (`RegistroAuditoria`). |
+| **PostgreSQL 17 (Podman)** | Persistência Relacional em Container | Executado isoladamente via container gerenciado pelo Podman (`podman compose` / `compose.yml`), persistindo regras dinâmicas (`RegraValidacao`) e telemetria (`RegistroAuditoria`). |
 | **Streamlit** | Painel Executivo da CAGD | Dashboard operacional em tempo real: cards KPI, gráficos de falha, gestão de regras e sandbox interativo de testes. |
 | **`brutils`** | Identificadores Nacionais & IBGE | Validação matemática estrita de CPF/CNPJ (módulo 11), CEP, PIS, E-mail e resolução local de todos os 5.570 municípios brasileiros via `brutils/data/cities_code.json`, sem chamadas externas. |
 | **`phonenumbers` (libphonenumber)** | Padrão Telefônico Nacional & DDD | Validação e formatação oficial segundo especificações da Anatel e Google libphonenumber, eliminando listas manuais de DDDs. |
@@ -75,7 +75,7 @@ O sistema adota os princípios de Clean Architecture, Domain-Driven Design (DDD)
 
 ## 3. Instalação e Execução com Nix Flake e Podman
 
-O projeto adota um ambiente de engenharia puramente reprodutível baseado em **Nix Flakes** (estruturado modularmente com `flake-parts` e `nix-systems`). O Nix provisiona o runtime Python 3 em sua versão estável de ponta (*bleeding edge stable*, através do pacote `python3`), utilitários nativos (`podman-compose`, `uv`, `pyright`), injeção de bibliotecas dinâmicas C/C++ (`stdenv.cc.cc.lib` e `zlib`) e instala os Git Hooks automaticamente, enquanto o PostgreSQL 16 é executado em container isolado via **Podman**, simplificando a infraestrutura ao máximo.
+O projeto adota um ambiente de engenharia puramente reprodutível baseado em **Nix Flakes** (estruturado modularmente com `flake-parts` e `nix-systems`). O Nix provisiona o runtime Python 3 em sua versão estável de ponta (*bleeding edge stable*, através do pacote `python3`), utilitários nativos (`podman-compose`, `uv`, `pyright`), injeção de bibliotecas dinâmicas C/C++ (`stdenv.cc.cc.lib` e `zlib`) e instala os Git Hooks automaticamente, enquanto o PostgreSQL 17 é executado em container isolado via **Podman** (`compose.yml`), simplificando a infraestrutura ao máximo.
 
 ### 3.1. Configuração do Ambiente Nix e Podman
 
@@ -152,7 +152,7 @@ O `uv` provisiona o ambiente virtual `.venv` local e instala todas as dependênc
 
 ### 3.3. Inicialização do Banco de Dados em Container (Podman)
 
-Suba a instância isolada do PostgreSQL 16 utilizando o `podman-compose` fornecido pelo devshell:
+Suba a instância isolada do PostgreSQL 17 utilizando o `podman-compose` fornecido pelo devshell (que carrega automaticamente o arquivo declarativo `compose.yml`):
 
 ```bash
 podman-compose up -d
