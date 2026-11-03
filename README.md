@@ -60,10 +60,10 @@ O sistema adota os princípios de Clean Architecture, Domain-Driven Design (DDD)
 
 | Tecnologia | Função no Sistema | Detalhes e Justificativa de Engenharia |
 | :--- | :--- | :--- |
-| **Python 3.12+ & FastAPI** | Gateway REST Assíncrono | Processamento de alta vazão com documentação OpenAPI interativa em Português do Brasil formal (pt-BR). |
+| **Python 3 (Bleeding Edge Stable) & FastAPI** | Gateway REST Assíncrono | Processamento de alta vazão com documentação OpenAPI interativa em Português do Brasil formal (pt-BR). A plataforma adota intencionalmente a versão estável mais recente do Python (`python3` no Nixpkgs), garantindo máxima performance e suporte a novos recursos da linguagem. |
 | **Pydantic V2** | Validação & Parsing Core | Validação ultrarrápida compilada em Rust com coerção estrita e esquemas tipados. |
 | **pyproject.toml** | *Single Source of Truth* | Especificação declarativa única (PEP 621) para dependências de runtime, dev tools, linters e LSPs. |
-| **Nix Flake (`git-hooks.nix` & `pyproject.nix`)** | Ambiente Puro & Reprodutível | Shell declarativo e hermético que analisa diretamente o `pyproject.toml`, provisionando Python 3.12, utilitários nativos (`podman-compose`, `uv`, `pyright`) e Git Hooks pré-commit automáticos. |
+| **Nix Flake (`flake-parts`, `nix-systems` & `git-hooks.nix`)** | Ambiente Puro & Reprodutível | Shell declarativo e hermético que analisa diretamente o `pyproject.toml`, provisionando o runtime `python3` (versão estável de ponta / *bleeding edge stable*), utilitários nativos (`podman-compose`, `uv`, `pyright`), injeção declarativa de ambiente (`env = { ... }` com `LD_LIBRARY_PATH` dinâmico para extensões C++) e Git Hooks pré-commit automáticos. |
 | **PostgreSQL 16 (Podman)** | Persistência Relacional em Container | Executado isoladamente via container gerenciado pelo Podman (`podman compose`), persistindo regras dinâmicas (`RegraValidacao`) e telemetria (`RegistroAuditoria`). |
 | **Streamlit** | Painel Executivo da CAGD | Dashboard operacional em tempo real: cards KPI, gráficos de falha, gestão de regras e sandbox interativo de testes. |
 | **`brutils`** | Identificadores Nacionais & IBGE | Validação matemática estrita de CPF/CNPJ (módulo 11), CEP, PIS, E-mail e resolução local de todos os 5.570 municípios brasileiros via `brutils/data/cities_code.json`, sem chamadas externas. |
@@ -75,7 +75,7 @@ O sistema adota os princípios de Clean Architecture, Domain-Driven Design (DDD)
 
 ## 3. Instalação e Execução com Nix Flake e Podman
 
-O projeto adota um ambiente de engenharia puramente reprodutível baseado em **Nix Flakes**. O Nix provisiona o runtime Python 3.12, utilitários nativos (`podman-compose`, `uv`, `pyright`) e instala os Git Hooks automaticamente, enquanto o PostgreSQL 16 é executado em container isolado via **Podman**, simplificando a infraestrutura ao máximo.
+O projeto adota um ambiente de engenharia puramente reprodutível baseado em **Nix Flakes** (estruturado modularmente com `flake-parts` e `nix-systems`). O Nix provisiona o runtime Python 3 em sua versão estável de ponta (*bleeding edge stable*, através do pacote `python3`), utilitários nativos (`podman-compose`, `uv`, `pyright`), injeção de bibliotecas dinâmicas C/C++ (`stdenv.cc.cc.lib` e `zlib`) e instala os Git Hooks automaticamente, enquanto o PostgreSQL 16 é executado em container isolado via **Podman**, simplificando a infraestrutura ao máximo.
 
 ### 3.1. Configuração do Ambiente Nix e Podman
 
@@ -102,26 +102,25 @@ nix develop
 #### Opção B: Ambiente Não-NixOS (Ubuntu, Debian, Fedora, Arch, macOS, WSL2)
 Em distribuições Linux tradicionais ou macOS:
 
-1. **Instale o Nix**:
-   Recomenda-se o instalador oficial do [Determinate Systems](https://github.com/DeterminateSystems/nix-installer) (que já habilita Flakes por padrão):
+1. **Instale o Nix** (utilizando o instalador oficial multi-usuário da comunidade NixOS):
    ```bash
-   curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
+   sh <(curl -L https://nixos.org/nix/install) --daemon
    ```
-   *Caso utilize a instalação tradicional do Nix, habilite os Flakes em `~/.config/nix/nix.conf` (ou `/etc/nix/nix.conf`):*
+   *Após a instalação, certifique-se de que o suporte a `flakes` e ao comando `nix` moderno está ativo em `~/.config/nix/nix.conf` (ou `/etc/nix/nix.conf`):*
    ```conf
    experimental-features = nix-command flakes
    ```
 
-2. **Instale o Podman e Podman Compose** via gerenciador de pacotes do sistema:
+2. **Instale o Podman** via gerenciador de pacotes do sistema (o `podman-compose` não precisa ser instalado globalmente, pois já é fornecido diretamente pelo devshell do Nix):
    ```bash
    # Debian / Ubuntu
-   sudo apt update && sudo apt install -y podman podman-compose
+   sudo apt update && sudo apt install -y podman
 
    # Fedora / RHEL
-   sudo dnf install -y podman podman-compose
+   sudo dnf install -y podman
 
    # Arch Linux
-   sudo pacman -S podman podman-compose
+   sudo pacman -S podman
    ```
 
 3. **Entre no Ambiente de Desenvolvimento**:
@@ -153,11 +152,9 @@ O `uv` provisiona o ambiente virtual `.venv` local e instala todas as dependênc
 
 ### 3.3. Inicialização do Banco de Dados em Container (Podman)
 
-Suba a instância isolada do PostgreSQL 16 utilizando o Podman:
+Suba a instância isolada do PostgreSQL 16 utilizando o `podman-compose` fornecido pelo devshell:
 
 ```bash
-podman compose up -d
-# ou com o binário podman-compose provido pelo devshell do Nix:
 podman-compose up -d
 ```
 
@@ -169,7 +166,7 @@ podman logs setic_postgres
 
 Para encerrar o container do banco quando necessário:
 ```bash
-podman compose down
+podman-compose down
 ```
 
 ---

@@ -69,52 +69,48 @@
             package = self'.packages.default;
           };
 
-          packages.default =
-            with pkgs;
-            stdenv.mkDerivation {
-              pname = pyproject.project.name;
-              version = pyproject.project.version;
-              src = ./.;
-              nativeBuildInputs = [
+          packages.default = pkgs.stdenv.mkDerivation {
+            pname = pyproject.project.name;
+            version = pyproject.project.version;
+            src = ./.;
+            nativeBuildInputs = with pkgs; [
+              python3
+              uv
+              pkg-config
+              gcc
+            ];
+            buildPhase = "true";
+            installPhase = ''
+              mkdir -p $out/lib
+              cp -r backend frontend pyproject.toml $out/lib/
+            '';
+          };
+
+          devShells.default = pkgs.mkShell {
+            name = "${pyproject.project.name}-devshell";
+
+            packages =
+              (with pkgs; [
                 python3
                 uv
-                pkg-config
-                gcc
-              ];
-              buildPhase = "true";
-              installPhase = ''
-                mkdir -p $out/lib
-                cp -r backend frontend pyproject.toml $out/lib/
-              '';
+                pyright
+                podman-compose
+              ])
+              ++ pre-commit-check.enabledPackages;
+
+            env = {
+              DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/setic_qualidade";
+              LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (with pkgs; [
+                stdenv.cc.cc.lib
+                zlib
+              ]);
             };
 
-          devShells.default =
-            with pkgs;
-            mkShell {
-              name = "${pyproject.project.name}-devshell";
-
-              packages =
-                [
-                  python3
-                  uv
-                  pyright
-                  podman-compose
-                ]
-                ++ pre-commit-check.enabledPackages;
-
-              env = {
-                DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/setic_qualidade";
-                LD_LIBRARY_PATH = lib.makeLibraryPath [
-                  stdenv.cc.cc.lib
-                  zlib
-                ];
-              };
-
-              shellHook = ''
-                ${pre-commit-check.shellHook}
-                [ -d ".venv" ] && export PATH="$PWD/.venv/bin:$PATH" && export VIRTUAL_ENV="$PWD/.venv"
-              '';
-            };
+            shellHook = ''
+              ${pre-commit-check.shellHook}
+              [ -d ".venv" ] && export PATH="$PWD/.venv/bin:$PATH" && export VIRTUAL_ENV="$PWD/.venv"
+            '';
+          };
         };
     };
 }
